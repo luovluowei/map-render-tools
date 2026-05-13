@@ -235,6 +235,27 @@
             margin-top: 20px;
         }
 
+        .path-point-marker {
+            cursor: pointer;
+        }
+
+        .path-point-popup .leaflet-popup-content-wrapper {
+            border-radius: 10px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+        }
+
+        .path-point-popup .leaflet-popup-content {
+            margin: 10px 14px;
+            font-family: "SF Mono", SFMono-Regular, ui-monospace, Menlo, Monaco, Consolas, monospace;
+            font-size: 13px;
+            color: var(--text-primary);
+            line-height: 1.4;
+        }
+
+        .path-point-popup .leaflet-popup-tip {
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
         .marker-icon {
             display: none !important;
         }
@@ -382,9 +403,42 @@
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         }).addTo(map);
 
+        // 路径点默认/选中样式
+        const PATH_POINT_STYLE = {
+            default: { radius: 5, fillColor: '#006400', color: '#006400', weight: 1, opacity: 1, fillOpacity: 1 },
+            active: { radius: 8, fillColor: '#0071e3', color: '#0071e3', weight: 2, opacity: 1, fillOpacity: 1 }
+        };
+
+        let activePathMarker = null;
+
+        function formatLatLngString(point) {
+            return point.lat + ',' + point.lng;
+        }
+
+        function clearSelectedPointInfo() {
+            if (activePathMarker) {
+                activePathMarker.setStyle(PATH_POINT_STYLE.default);
+                activePathMarker.closePopup();
+                activePathMarker = null;
+            }
+            map.closePopup();
+        }
+
+        function setActivePathMarker(marker) {
+            if (activePathMarker && activePathMarker !== marker) {
+                activePathMarker.setStyle(PATH_POINT_STYLE.default);
+                activePathMarker.closePopup();
+            }
+            activePathMarker = marker;
+            marker.setStyle(PATH_POINT_STYLE.active);
+            marker.bringToFront();
+            marker.openPopup();
+        }
+
         // 绘制地图的函数
         function drawMap(latLngArray, singlePoint, secondPoint) {
             console.log('luov---drawMap', singlePoint)
+            clearSelectedPointInfo();
             // 清除现有的图层
             map.eachLayer((layer) => {
                 if (layer instanceof L.Marker || layer instanceof L.Polyline || layer instanceof L.CircleMarker) {
@@ -408,17 +462,19 @@
             }).addTo(map);
 
             // 添加标记
-            latLngArray.forEach(point => {
+            latLngArray.forEach((point) => {
                 const c = convertPoint(parseFloat(point.lat), parseFloat(point.lng));
                 const latLng = [c.lat, c.lng];
-                const marker = L.circleMarker(latLng, {
-                    radius: 5,
-                    fillColor: '#006400',
-                    color: '#006400',
-                    weight: 1,
-                    opacity: 1,
-                    fillOpacity: 1
-                }).addTo(map);
+                const marker = L.circleMarker(latLng, Object.assign({ className: 'path-point-marker' }, PATH_POINT_STYLE.default)).addTo(map);
+                marker.bindPopup(formatLatLngString(point), {
+                    closeButton: false,
+                    autoClose: false,
+                    className: 'path-point-popup'
+                });
+                marker.on('click', function (e) {
+                    L.DomEvent.stopPropagation(e);
+                    setActivePathMarker(marker);
+                });
             });
 
             // 如果有单个点，添加标记
