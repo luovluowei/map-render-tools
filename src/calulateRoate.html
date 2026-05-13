@@ -250,23 +250,13 @@
         <section class="card">
             <h2 class="card-title">Point Rotation Calculation</h2>
             <p class="card-desc">输入司机点与目标点坐标，计算两点间的旋转角度。</p>
-            <div class="form-grid">
-                <div class="field">
-                    <label for="carMarkerLat">司机点纬度</label>
-                    <input type="text" id="carMarkerLat" placeholder="Enter latitude">
-                </div>
-                <div class="field">
-                    <label for="carMarkerLon">司机点经度</label>
-                    <input type="text" id="carMarkerLon" placeholder="Enter longitude">
-                </div>
-                <div class="field">
-                    <label for="destPointLat">目标点纬度</label>
-                    <input type="text" id="destPointLat" placeholder="Enter latitude">
-                </div>
-                <div class="field">
-                    <label for="destPointLon">目标点经度</label>
-                    <input type="text" id="destPointLon" placeholder="Enter longitude">
-                </div>
+            <div class="field field-full">
+                <label for="carMarkerInput">司机点经纬度</label>
+                <input type="text" id="carMarkerInput" placeholder='请输入司机点经纬度, e.g. 36.245109100334226,120.40522890991846'>
+            </div>
+            <div class="field field-full">
+                <label for="destPointInput">目标点经纬度</label>
+                <input type="text" id="destPointInput" placeholder='请输入目标点经纬度, e.g. 36.245109100334226,120.40522890991846'>
             </div>
             <button id="calculateButton" class="btn">计算旋转角度</button>
             <div class="result-block">
@@ -308,20 +298,24 @@
             return Math.floor((360 + angle) % 360);
         }
 
+        function parseLatLngInput(raw) {
+            const parts = raw.trim().split(',').map(function (s) { return s.trim(); });
+            if (parts.length < 2) return null;
+            const lat = parseFloat(parts[0]);
+            const lng = parseFloat(parts[1]);
+            if (isNaN(lat) || isNaN(lng)) return null;
+            return { latitude: lat, longitude: lng };
+        }
+
         // 处理按钮点击事件
         document.getElementById('calculateButton').addEventListener('click', function() {
-            const carMarkerLat = parseFloat(document.getElementById('carMarkerLat').value);
-            const carMarkerLon = parseFloat(document.getElementById('carMarkerLon').value);
-            const destPointLat = parseFloat(document.getElementById('destPointLat').value);
-            const destPointLon = parseFloat(document.getElementById('destPointLon').value);
+            const carMarker = parseLatLngInput(document.getElementById('carMarkerInput').value);
+            const destPoint = parseLatLngInput(document.getElementById('destPointInput').value);
 
-            if (isNaN(carMarkerLat) || isNaN(carMarkerLon) || isNaN(destPointLat) || isNaN(destPointLon)) {
-                alert('Please enter valid coordinates.');
+            if (!carMarker || !destPoint) {
+                alert('请输入有效的经纬度，格式：纬度,经度');
                 return;
             }
-
-            const carMarker = { latitude: carMarkerLat, longitude: carMarkerLon };
-            const destPoint = { latitude: destPointLat, longitude: destPointLon };
 
             const result = getPointRotate(carMarker, destPoint);
             document.getElementById('result').innerText = `Rotation Angle: ${result} degrees`;
