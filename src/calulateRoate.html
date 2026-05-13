@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Point Rotation Calculation</title>
+    <!-- 引入 Turf.js 库 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Turf.js/6.5.0/turf.min.js"></script>
+    <!-- 引入 Leaflet.js 样式 -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <style>
+        #map {
+            height: 600px;
+            width: 100%;
+        }
+        .marker-icon {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <h1>Point Rotation Calculation</h1>
+    <div>
+        <label for="carMarkerLat">司机点纬度:</label>
+        <input type="text" id="carMarkerLat" placeholder="Enter latitude">
+        <label for="carMarkerLon">司机点经度:</label>
+        <input type="text" id="carMarkerLon" placeholder="Enter longitude">
+    </div>
+    <div>
+        <label for="destPointLat">目标点纬度:</label>
+        <input type="text" id="destPointLat" placeholder="Enter latitude">
+        <label for="destPointLon">目标点经度:</label>
+        <input type="text" id="destPointLon" placeholder="Enter longitude">
+    </div>
+    <button id="calculateButton">计算旋转角度</button>
+    <div>
+        <h2>结果:</h2>
+        <p id="result"></p>
+    </div>
+
+    <script>
+        // 引入 Turf.js 方法
+        const turfPoint = turf.point;
+        const bearing = turf.bearing;
+
+        // 计算旋转角度的函数
+        function getPointRotate(carMarker, destPoint = {}) {
+            const startPt = turfPoint([carMarker.longitude, carMarker.latitude]);
+            const endPt = turfPoint([destPoint.longitude, destPoint.latitude]);
+            const angle = bearing(startPt, endPt); // 0 - 360度
+            return Math.floor((360 + angle) % 360);
+        }
+
+        // 处理按钮点击事件
+        document.getElementById('calculateButton').addEventListener('click', function() {
+            const carMarkerLat = parseFloat(document.getElementById('carMarkerLat').value);
+            const carMarkerLon = parseFloat(document.getElementById('carMarkerLon').value);
+            const destPointLat = parseFloat(document.getElementById('destPointLat').value);
+            const destPointLon = parseFloat(document.getElementById('destPointLon').value);
+
+            if (isNaN(carMarkerLat) || isNaN(carMarkerLon) || isNaN(destPointLat) || isNaN(destPointLon)) {
+                alert('Please enter valid coordinates.');
+                return;
+            }
+
+            const carMarker = { latitude: carMarkerLat, longitude: carMarkerLon };
+            const destPoint = { latitude: destPointLat, longitude: destPointLon };
+
+            const result = getPointRotate(carMarker, destPoint);
+            document.getElementById('result').innerText = `Rotation Angle: ${result} degrees`;
+        });
+    </script>
+
+
+
+<h1>Map with Polyline and Markers</h1>
+<textarea id="pointsInput" rows="10" cols="150" placeholder='请输入数组对象格式, e.g. [{"lat": 40.0252387, "lng": 118.72192389999998}, ...]'></textarea>
+<br>
+<input type="text" id="driverPointInput" style="width: 40vw;" placeholder='请输入司机点经纬度, e.g. 36.245109100334226,120.40522890991846'>
+<!-- 扩展第二点的输入 -->
+<input type="text" id="targetPointInput" style="width: 40vw;" placeholder='请输入目标点经纬度, e.g. 36.245109100334226,120.40522890991846'>
+<br>
+<button id="drawButton">地图绘制</button>
+<div id="map"></div>
+
+
+    <!-- 引入 Leaflet.js 库 -->
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script>
+        // GCJ-02 <-> WGS-84 坐标转换
+        const GCJ02 = (function () {
+            const PI = Math.PI;
+            const a = 6378245.0;
+            const ee = 0.00669342162296594323;
+
+            function outOfChina(lng, lat) {
+                return lng < 72.004 || lng > 137.8347 || lat < 0.8293 || lat > 55.8271;
+            }
+
+            function transformLat(x, y) {
+                let ret = -100.0 + 2.0 * x + 3.0 * y + 0.2 * y * y +
+                    0.1 * x * y + 0.2 * Math.sqrt(Math.abs(x));
+                ret += (20.0 * Math.sin(6.0 * x * PI) + 20.0 * Math.sin(2.0 * x * PI)) * 2.0 / 3.0;
+                ret += (20.0 * Math.sin(y * PI) + 40.0 * Math.sin(y / 3.0 * PI)) * 2.0 / 3.0;
+                ret += (160.0 * Math.sin(y / 12.0 * PI) + 320 * Math.sin(y * PI / 30.0)) * 2.0 / 3.0;
+                return ret;
+            }
+
+            function transformLng(x, y) {
+                let ret = 300.0 + x + 2.0 * y + 0.1 * x * x +
+                    0.1 * x * y + 0.1 * Math.sqrt(Math.abs(x));
+                ret += (20.0 * Math.sin(6.0 * x * PI) + 20.0 * Math.sin(2.0 * x * PI)) * 2.0 / 3.0;
+                ret += (20.0 * Math.sin(x * PI) + 40.0 * Math.sin(x / 3.0 * PI)) * 2.0 / 3.0;
+                ret += (150.0 * Math.sin(x / 12.0 * PI) + 300.0 * Math.sin(x / 30.0 * PI)) * 2.0 / 3.0;
+                return ret;
+            }
+
+            function gcj02ToWgs84(lng, lat) {
+                if (outOfChina(lng, lat)) return { lat, lng };
+                let dLat = transformLat(lng - 105.0, lat - 35.0);
+                let dLng = transformLng(lng - 105.0, lat - 35.0);
+                const radLat = lat / 180.0 * PI;
+                let magic = Math.sin(radLat);
+                magic = 1 - ee * magic * magic;
+                const sqrtMagic = Math.sqrt(magic);
+                dLat = (dLat * 180.0) / ((a * (1 - ee)) / (magic * sqrtMagic) * PI);
+                dLng = (dLng * 180.0) / (a / sqrtMagic * Math.cos(radLat) * PI);
+                return { lat: lat - dLat, lng: lng - dLng };
+            }
+
+            return { gcj02ToWgs84 };
+        })();
+
+        // 输入按 GCJ-02（高德/滴滴等）处理，统一转为 WGS-84 以匹配 OSM 底图
+        function convertPoint(lat, lng) {
+            return GCJ02.gcj02ToWgs84(lng, lat);
+        }
+
+        // 初始化地图
+        const map = L.map('map').setView([40.0252387, 118.72192389999998], 15);
+
+        // 添加 OpenStreetMap 瓦片图层（WGS-84）
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        // 绘制地图的函数
+        function drawMap(latLngArray, singlePoint, secondPoint) {
+            console.log('luov---drawMap', singlePoint)
+            // 清除现有的图层
+            map.eachLayer((layer) => {
+                if (layer instanceof L.Marker || layer instanceof L.Polyline || layer instanceof L.CircleMarker) {
+                    map.removeLayer(layer);
+                }
+            });
+
+            // 将经纬度点转换为 Leaflet 的 LatLng 对象（GCJ-02 → WGS-84）
+            const latLngs = latLngArray.map(point => {
+                const c = convertPoint(parseFloat(point.lat), parseFloat(point.lng));
+                return [c.lat, c.lng];
+            });
+
+            // 在地图上绘制线
+            const polyline = L.polyline(latLngs, {
+                color: 'green',
+                weight: 5,
+                opacity: 1,
+                lineCap: 'round',
+                lineJoin: 'round'
+            }).addTo(map);
+
+            // 添加标记
+            latLngArray.forEach(point => {
+                const c = convertPoint(parseFloat(point.lat), parseFloat(point.lng));
+                const latLng = [c.lat, c.lng];
+                const marker = L.circleMarker(latLng, {
+                    radius: 5,
+                    fillColor: '#006400',
+                    color: '#006400',
+                    weight: 1,
+                    opacity: 1,
+                    fillOpacity: 1
+                }).addTo(map);
+            });
+
+            // 如果有单个点，添加标记
+            if (singlePoint) {
+                const sc = convertPoint(parseFloat(singlePoint.lat), parseFloat(singlePoint.lng));
+                const latLng = [sc.lat, sc.lng];
+                const driverIcon = L.icon({
+                    iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+                    iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+                    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+                    iconSize: [25, 41],
+                    iconAnchor: [12, 41],
+                    popupAnchor: [1, -34],
+                    shadowSize: [41, 41]
+                });
+                L.marker(latLng, { icon: driverIcon }).addTo(map).bindPopup('司机');
+            }
+
+            // 如果有第二点，添加标记
+            if (secondPoint) {
+                const tc = convertPoint(parseFloat(secondPoint.lat), parseFloat(secondPoint.lng));
+                const latLng = [tc.lat, tc.lng];
+                const marker = L.circleMarker(latLng, {
+                    radius: 5,
+                    fillColor: 'orange',
+                    color: 'orange',
+                    weight: 1,
+                    opacity: 1,
+                    fillOpacity: 1
+                }).addTo(map);
+            }
+
+            // 调整地图视图以适应线的范围
+            map.fitBounds(polyline.getBounds());
+        }
+    </script><script>
+// 绑定地图绘制按钮事件
+(function () {
+  const btn = document.getElementById('drawButton');
+  if (!btn) return;
+  btn.addEventListener('click', function () {
+    // 解析路径点 JSON
+    const pointsText = document.getElementById('pointsInput').value.trim();
+    if (!pointsText) {
+      alert('请输入路径点数据');
+      return;
+    }
+    let points;
+    try {
+      points = JSON.parse(pointsText);
+      if(typeof points === 'string') {
+        points = JSON.parse(points);
+      }
+    } catch (e) {
+      alert('pointsInput 不是有效的 JSON 数组');
+      return;
+    }
+    if (!Array.isArray(points)) {
+      alert('pointsInput 必须为数组');
+      return;
+    }
+
+    const latLngArray = points
+      .map(function (p) {
+        const lat = parseFloat((p && (p.lat ?? p.latitude)));
+        const lng = parseFloat((p && (p.lng ?? p.longitude)));
+        return { lat: lat, lng: lng };
+      })
+      .filter(function (p) { return !isNaN(p.lat) && !isNaN(p.lng); });
+
+    if (latLngArray.length === 0) {
+      alert('未解析到有效的路径点');
+      return;
+    }
+
+    // 解析司机点 "lat,lng"
+    const driverRaw = document.getElementById('driverPointInput').value.trim();
+    var singlePoint = null;
+    if (driverRaw) {
+      const parts = driverRaw.split(',').map(function (s) { return s.trim(); });
+      if (parts.length >= 2) {
+        const lat = parseFloat(parts[0]);
+        const lng = parseFloat(parts[1]);
+        if (!isNaN(lat) && !isNaN(lng)) {
+          singlePoint = { lat: lat, lng: lng };
+        }
+      }
+    }
+
+    // 解析目标点 "lat,lng"
+    const targetRaw = document.getElementById('targetPointInput').value.trim();
+    var secondPoint = null;
+    if (targetRaw) {
+      const parts = targetRaw.split(',').map(function (s) { return s.trim(); });
+      if (parts.length >= 2) {
+        const lat = parseFloat(parts[0]);
+        const lng = parseFloat(parts[1]);
+        if (!isNaN(lat) && !isNaN(lng)) {
+          secondPoint = { lat: lat, lng: lng };
+        }
+      }
+    }
+
+    // 调用已有函数进行绘制
+    if (typeof drawMap === 'function') {
+      drawMap(latLngArray, singlePoint, secondPoint);
+    } else {
+      alert('drawMap 未定义，请检查脚本加载顺序');
+    }
+  });
+})();
+</script>
