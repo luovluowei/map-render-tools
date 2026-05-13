@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,33 +9,290 @@
     <!-- 引入 Leaflet.js 样式 -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <style>
-        #map {
-            height: 600px;
-            width: 100%;
+        *, *::before, *::after {
+            box-sizing: border-box;
         }
+
+        :root {
+            --bg: #f5f5f7;
+            --surface: #ffffff;
+            --text-primary: #1d1d1f;
+            --text-secondary: #6e6e73;
+            --text-tertiary: #86868b;
+            --border: rgba(0, 0, 0, 0.08);
+            --border-focus: #0071e3;
+            --accent: #0071e3;
+            --accent-hover: #0077ed;
+            --accent-active: #006edb;
+            --radius-sm: 10px;
+            --radius-md: 14px;
+            --radius-lg: 18px;
+            --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.06);
+            --shadow-md: 0 4px 24px rgba(0, 0, 0, 0.06);
+            --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+        }
+
+        html {
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        body {
+            margin: 0;
+            padding: 48px 24px 64px;
+            font-family: var(--font);
+            font-size: 15px;
+            line-height: 1.5;
+            color: var(--text-primary);
+            background: var(--bg);
+        }
+
+        .page {
+            max-width: 960px;
+            margin: 0 auto;
+        }
+
+        .page-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .page-header h1 {
+            margin: 0 0 8px;
+            font-size: 32px;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+            color: var(--text-primary);
+        }
+
+        .page-header p {
+            margin: 0;
+            font-size: 17px;
+            color: var(--text-secondary);
+            font-weight: 400;
+        }
+
+        .card {
+            background: var(--surface);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-md);
+            border: 1px solid var(--border);
+            padding: 28px 32px;
+            margin-bottom: 24px;
+        }
+
+        .card-title {
+            margin: 0 0 6px;
+            font-size: 22px;
+            font-weight: 600;
+            letter-spacing: -0.01em;
+            color: var(--text-primary);
+        }
+
+        .card-desc {
+            margin: 0 0 24px;
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 600px) {
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            body {
+                padding: 32px 16px 48px;
+            }
+
+            .card {
+                padding: 20px;
+            }
+        }
+
+        .field {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .field label {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            letter-spacing: 0.01em;
+        }
+
+        .field input[type="text"],
+        .field textarea {
+            width: 100%;
+            padding: 11px 14px;
+            font-family: var(--font);
+            font-size: 15px;
+            color: var(--text-primary);
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            outline: none;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+        }
+
+        .field input[type="text"]::placeholder,
+        .field textarea::placeholder {
+            color: var(--text-tertiary);
+        }
+
+        .field input[type="text"]:focus,
+        .field textarea:focus {
+            border-color: var(--border-focus);
+            background: var(--surface);
+            box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.18);
+        }
+
+        .field textarea {
+            resize: vertical;
+            min-height: 140px;
+            line-height: 1.6;
+            font-family: "SF Mono", SFMono-Regular, ui-monospace, Menlo, Monaco, Consolas, monospace;
+            font-size: 13px;
+        }
+
+        .field-full {
+            margin-bottom: 16px;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 11px 22px;
+            font-family: var(--font);
+            font-size: 15px;
+            font-weight: 500;
+            color: #fff;
+            background: var(--accent);
+            border: none;
+            border-radius: 980px;
+            cursor: pointer;
+            transition: background 0.2s ease, transform 0.1s ease;
+            letter-spacing: -0.01em;
+        }
+
+        .btn:hover {
+            background: var(--accent-hover);
+        }
+
+        .btn:active {
+            background: var(--accent-active);
+            transform: scale(0.98);
+        }
+
+        .result-block {
+            margin-top: 24px;
+            padding: 18px 20px;
+            background: var(--bg);
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border);
+        }
+
+        .result-block h2 {
+            margin: 0 0 8px;
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-tertiary);
+        }
+
+        .result-block p {
+            margin: 0;
+            font-size: 20px;
+            font-weight: 500;
+            letter-spacing: -0.01em;
+            color: var(--text-primary);
+            min-height: 1.5em;
+        }
+
+        .result-block p:empty::before {
+            content: "—";
+            color: var(--text-tertiary);
+            font-weight: 400;
+        }
+
+        #map {
+            height: 520px;
+            width: 100%;
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow-sm);
+            margin-top: 20px;
+        }
+
         .marker-icon {
             display: none !important;
         }
     </style>
 </head>
 <body>
-    <h1>Point Rotation Calculation</h1>
-    <div>
-        <label for="carMarkerLat">司机点纬度:</label>
-        <input type="text" id="carMarkerLat" placeholder="Enter latitude">
-        <label for="carMarkerLon">司机点经度:</label>
-        <input type="text" id="carMarkerLon" placeholder="Enter longitude">
-    </div>
-    <div>
-        <label for="destPointLat">目标点纬度:</label>
-        <input type="text" id="destPointLat" placeholder="Enter latitude">
-        <label for="destPointLon">目标点经度:</label>
-        <input type="text" id="destPointLon" placeholder="Enter longitude">
-    </div>
-    <button id="calculateButton">计算旋转角度</button>
-    <div>
-        <h2>结果:</h2>
-        <p id="result"></p>
+    <div class="page">
+        <header class="page-header">
+            <h1>地图渲染工具</h1>
+            <p>坐标旋转计算与路径可视化</p>
+        </header>
+
+        <section class="card">
+            <h2 class="card-title">Point Rotation Calculation</h2>
+            <p class="card-desc">输入司机点与目标点坐标，计算两点间的旋转角度。</p>
+            <div class="form-grid">
+                <div class="field">
+                    <label for="carMarkerLat">司机点纬度</label>
+                    <input type="text" id="carMarkerLat" placeholder="Enter latitude">
+                </div>
+                <div class="field">
+                    <label for="carMarkerLon">司机点经度</label>
+                    <input type="text" id="carMarkerLon" placeholder="Enter longitude">
+                </div>
+                <div class="field">
+                    <label for="destPointLat">目标点纬度</label>
+                    <input type="text" id="destPointLat" placeholder="Enter latitude">
+                </div>
+                <div class="field">
+                    <label for="destPointLon">目标点经度</label>
+                    <input type="text" id="destPointLon" placeholder="Enter longitude">
+                </div>
+            </div>
+            <button id="calculateButton" class="btn">计算旋转角度</button>
+            <div class="result-block">
+                <h2>结果</h2>
+                <p id="result"></p>
+            </div>
+        </section>
+
+        <section class="card">
+            <h2 class="card-title">Map with Polyline and Markers</h2>
+            <p class="card-desc">粘贴路径点 JSON，并可选填写司机点与目标点，在地图上绘制折线与标记。</p>
+            <div class="field field-full">
+                <label for="pointsInput">路径点数据</label>
+                <textarea id="pointsInput" rows="10" cols="150" placeholder='请输入数组对象格式, e.g. [{"lat": 40.0252387, "lng": 118.72192389999998}, ...]'></textarea>
+            </div>
+            <div class="field field-full">
+                <label for="driverPointInput">司机点经纬度</label>
+                <input type="text" id="driverPointInput" placeholder='请输入司机点经纬度, e.g. 36.245109100334226,120.40522890991846'>
+            </div>
+            <div class="field field-full">
+                <label for="targetPointInput">目标点经纬度</label>
+                <input type="text" id="targetPointInput" placeholder='请输入目标点经纬度, e.g. 36.245109100334226,120.40522890991846'>
+            </div>
+            <button id="drawButton" class="btn">地图绘制</button>
+            <div id="map"></div>
+        </section>
     </div>
 
     <script>
@@ -70,19 +327,6 @@
             document.getElementById('result').innerText = `Rotation Angle: ${result} degrees`;
         });
     </script>
-
-
-
-<h1>Map with Polyline and Markers</h1>
-<textarea id="pointsInput" rows="10" cols="150" placeholder='请输入数组对象格式, e.g. [{"lat": 40.0252387, "lng": 118.72192389999998}, ...]'></textarea>
-<br>
-<input type="text" id="driverPointInput" style="width: 40vw;" placeholder='请输入司机点经纬度, e.g. 36.245109100334226,120.40522890991846'>
-<!-- 扩展第二点的输入 -->
-<input type="text" id="targetPointInput" style="width: 40vw;" placeholder='请输入目标点经纬度, e.g. 36.245109100334226,120.40522890991846'>
-<br>
-<button id="drawButton">地图绘制</button>
-<div id="map"></div>
-
 
     <!-- 引入 Leaflet.js 库 -->
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
@@ -293,3 +537,5 @@
   });
 })();
 </script>
+</body>
+</html>
