@@ -345,6 +345,7 @@
 
     <!-- 引入 Leaflet.js 库 -->
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-polylinedecorator@1.6.0/dist/leaflet.polylineDecorator.js"></script>
     <script>
         // GCJ-02 <-> WGS-84 坐标转换
         const GCJ02 = (function () {
@@ -397,6 +398,38 @@
 
         // 初始化地图
         const map = L.map('map').setView([40.0252387, 118.72192389999998], 15);
+        const routeLayerGroup = L.layerGroup().addTo(map);
+
+        const ROUTE_LINE_STYLE = {
+            casing: { color: '#ffffff', weight: 8, opacity: 1, lineCap: 'round', lineJoin: 'round' },
+            main: { color: '#228B22', weight: 3.5, opacity: 1, lineCap: 'round', lineJoin: 'round' }
+        };
+
+        function drawRoutePolyline(latLngs) {
+            const casing = L.polyline(latLngs, ROUTE_LINE_STYLE.casing).addTo(routeLayerGroup);
+            const polyline = L.polyline(latLngs, ROUTE_LINE_STYLE.main).addTo(routeLayerGroup);
+
+            if (typeof L.polylineDecorator === 'function') {
+                L.polylineDecorator(polyline, {
+                    patterns: [{
+                        offset: '0%',
+                        repeat: 55,
+                        symbol: L.Symbol.arrowHead({
+                            pixelSize: 9,
+                            polygon: false,
+                            pathOptions: {
+                                stroke: true,
+                                color: '#145214',
+                                weight: 2,
+                                opacity: 0.95
+                            }
+                        })
+                    }]
+                }).addTo(routeLayerGroup);
+            }
+
+            return polyline;
+        }
 
         // 添加 OpenStreetMap 瓦片图层（WGS-84）
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -439,9 +472,10 @@
         function drawMap(latLngArray, singlePoint, secondPoint) {
             console.log('luov---drawMap', singlePoint)
             clearSelectedPointInfo();
+            routeLayerGroup.clearLayers();
             // 清除现有的图层
             map.eachLayer((layer) => {
-                if (layer instanceof L.Marker || layer instanceof L.Polyline || layer instanceof L.CircleMarker) {
+                if (layer instanceof L.Marker || layer instanceof L.CircleMarker) {
                     map.removeLayer(layer);
                 }
             });
@@ -452,14 +486,7 @@
                 return [c.lat, c.lng];
             });
 
-            // 在地图上绘制线
-            const polyline = L.polyline(latLngs, {
-                color: 'green',
-                weight: 5,
-                opacity: 1,
-                lineCap: 'round',
-                lineJoin: 'round'
-            }).addTo(map);
+            const polyline = drawRoutePolyline(latLngs);
 
             // 添加标记
             latLngArray.forEach((point) => {
